@@ -15,3 +15,15 @@ It runs as a Claude artifact. Photo estimates use Claude on your own account, an
 saved privately to your account, so the same data shows on your phone and your computer.
 Opened outside Claude, the log still works but is saved only in that browser, and photo
 estimates are turned off.
+
+## Installable Android version (`/docs`)
+
+`docs/` holds a standalone copy that installs on Android from Chrome as an app (home-screen icon,
+full screen, and a **Take photo** button that opens the camera).
+
+- Hosted with GitHub Pages: Settings → Pages → Deploy from a branch → this branch, `/docs` folder.
+- Calls Claude (`claude-opus-5-5`) directly with your own API key from console.anthropic.com,
+  entered in the app's Settings. The key and the log are stored only on the phone.
+- Use **Save backup file** now and then. The log is kept in the phone's browser storage.
+- `docs/anthropic-sdk.js` is the official `@anthropic-ai/sdk` 1.14.0 bundled for the browser.
+- After changing app files, bump `VERSION` in `docs/sw.js` so installed copies update.
