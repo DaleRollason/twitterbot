@@ -62,6 +62,8 @@ textarea{min-height:64px;resize:vertical}
 .panel{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:18px}
 .side{display:grid;gap:20px}
 .snap{display:grid;gap:12px}
+.snaps{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:10px}
+.snaps[hidden]{display:none}
 .snapbtn{min-height:64px;font-size:19px;width:100%}
 .or{display:flex;gap:10px;align-items:start}
 .or textarea{flex:1}
@@ -146,8 +148,12 @@ tfoot td{font-weight:900;border-bottom:0;border-top:2px solid var(--line)}
 
     <div class="side">
       <section class="panel snap" aria-label="Add a meal">
-        <label class="btn primary snapbtn" id="snapLbl" for="photo">Snap or choose a food photo</label>
-        <input id="photo" type="file" accept="image/*" capture="environment" hidden>
+        <div class="snaps" id="snaps">
+          <label class="btn primary snapbtn" id="snapLbl" for="cam">Take photo</label>
+          <label class="btn snapbtn" for="gal">Gallery</label>
+        </div>
+        <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+        <input id="gal" type="file" accept="image/*" hidden>
         <input id="hint" type="text" placeholder="Optional note, e.g. large bowl, no dressing, 2 slices">
         <div class="or">
           <textarea id="desc" placeholder="No photo? Describe it: e.g. flat white with full milk and a banana"></textarea>
@@ -304,7 +310,6 @@ function render() {
   [['P', t.p * 4], ['C', t.c * 4], ['F', t.f * 9]].forEach(([k, v]) => { $('#b' + k).style.width = (v / mk * 100) + '%'; });
   $('#vP').textContent = r0(t.p) + ' g'; $('#vC').textContent = r0(t.c) + ' g'; $('#vF').textContent = r0(t.f) + ' g';
   $('#sheetH').textContent = (S.day === TODAY ? "Today's" : dayLabel(S.day) + "'s") + ' sheet';
-  $('#snapLbl').textContent = S.day === TODAY ? 'Snap or choose a food photo' : 'Add a photo to ' + dayLabel(S.day);
 
   const rows = [...list].sort((a, b) => String(a.t).localeCompare(String(b.t)));
   $('#sheetBody').innerHTML = rows.length ? rows.map(e => {
@@ -444,7 +449,8 @@ function readReview() {
 }
 function reviewTotal() { const { items, mult } = readReview(); $('#rvTot').textContent = fmt(items.reduce((a, i) => a + i.kcal, 0) * mult) + ' kcal'; }
 $('#review').addEventListener('input', reviewTotal);
-$('#rvStop').onclick = () => { ctl?.abort(); S.busy = null; showReview(false); $('#photo').value = ''; };
+const resetInputs = () => { $('#cam').value = ''; $('#gal').value = ''; };
+$('#rvStop').onclick = () => { ctl?.abort(); S.busy = null; showReview(false); resetInputs(); };
 $('#rvSave').onclick = () => {
   if (!S.busy) return;
   const { items, mult } = readReview(), sum = k => r0(items.reduce((a, i) => a + i[k], 0) * mult);
@@ -452,10 +458,10 @@ $('#rvSave').onclick = () => {
   const e = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: when.toISOString(), meal: $('#rvMeal').value.trim().slice(0, 80) || S.busy.meal,
     type: $('#rvType').value, items, mult, kcal: sum('kcal'), p: sum('p'), c: sum('c'), f: sum('f'), conf: S.busy.conf, thumb: S.busy.thumb };
   (S.days[S.day] = S.days[S.day] || []).push(e);
-  saveDay(S.day); S.busy = null; showReview(false); $('#photo').value = ''; $('#desc').value = ''; $('#hint').value = '';
+  saveDay(S.day); S.busy = null; showReview(false); resetInputs(); $('#desc').value = ''; $('#hint').value = '';
   render(); toast('Added ' + fmt(e.kcal) + ' kcal');
 };
-$('#photo').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) estimate(f, ''); });
+['#cam', '#gal'].forEach(id => $(id).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) estimate(f, ''); }));
 $('#descBtn').onclick = () => { const t = $('#desc').value.trim(); if (!t) { $('#desc').focus(); return; } estimate(null, t.slice(0, 1000)); };
 
 // ---------- export ----------
@@ -479,8 +485,8 @@ fillForm(); render();
   if (!window.claude || !claude.use) { $('#snapNote').hidden = false; $('#snapNote').textContent = 'Open this page on claude.ai to estimate meals with Claude. Your log is kept on this device.'; return; }
   const [dbN, userN, sN, dN] = await Promise.all(['db', 'user', 'sample', 'downloads'].map(n => claude.use(n).catch(() => null)));
   sample = sN; downloads = dN;
-  if (sample) { const lim = await sample.limits().catch(() => null); canImages = !!lim?.images; if (lim?.images?.mediaTypes) $('#photo').accept = lim.images.mediaTypes.join(','); }
-  if (!canImages) { $('#snapLbl').hidden = true; $('#snapNote').hidden = false; $('#snapNote').textContent = sample ? 'Photos are not available in this view, but describing your meal works.' : 'Claude is not available in this view. Your log still works.'; }
+  if (sample) { const lim = await sample.limits().catch(() => null); canImages = !!lim?.images; if (lim?.images?.mediaTypes) { $('#cam').accept = $('#gal').accept = lim.images.mediaTypes.join(','); } }
+  if (!canImages) { $('#snaps').hidden = true; $('#snapNote').hidden = false; $('#snapNote').textContent = sample ? 'Photos are not available in this view, but describing your meal works.' : 'Claude is not available in this view. Your log still works.'; }
   $('#dl').hidden = !downloads;
   const uid = userN ? await userN.id().catch(() => null) : null;
   if (!dbN || !uid) { $('#saveState').textContent = 'Saved on this device only.'; return; }
